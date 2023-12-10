@@ -1,0 +1,53 @@
+#!/bin/bash
+
+data="$HOME/.local/share/ddnet"
+game="$HOME/.local/share/Steam/steamapps/common/DDraceNetwork/ddnet/data"
+
+set -e
+cd "${BASH_SOURCE[0]%/*}"
+[ -n "$1" ] && {
+	[ -d "ddnet-maps" ] || git clone "https://github.com/ddnet/ddnet-maps.git"
+	cd ddnet-maps; git reset --hard HEAD; git pull; cd ..
+	mkdir -p kog-maps/maps
+	false && {
+		cd /tmp; wget "https://kog.tw/download/maps.zip"; cd -
+		unzip -ujo /tmp/maps.zip -d kog-maps/maps/
+		rm /tmp/maps.zip
+	}
+	rm -rf "$data/types"
+	mkdir "$data/types"
+	ln -s "$PWD"/ddnet-maps/types/* "$data/types/"
+	{
+		find ddnet-maps/types -maxdepth 2 -type f -name flexreset.cfg
+		find . -type f -name "*.map"
+	} | while IFS= read -r file; do
+		[ "${file##*/}" != "flexreset.cfg" ] && {
+			"$game/../config_retrieve" "$file"
+			file="${file%.map}.cfg"
+			[ -f "$file" ] || continue
+		}
+		sed -i \
+			-e '/^sv_solo_server /D' \
+			-e '/^sv_pausable /D' \
+			-e '/^sv_show_others /D' \
+			-e '/^sv_team [03]/D' \
+			-e '/^sv_max_team_size /D' \
+			-e '/^sv_vote_kick /D' \
+		"$file"
+		[ "${file##*/}" != "flexreset.cfg" ] && {
+			"$game/../config_store" "${file%.cfg}.map" || true
+			rm -f "$file"
+		}
+	done
+	# TODO: KoG configs
+	# TODO: add KoG to other flexvotes.cfg
+	# TODO: add KoG to types
+	find "$data"/{,downloaded}maps \( -type f -o -type l \) -name "*.map" -delete
+	find "$PWD/kog-maps/maps" -type f -exec ln -sf {} "$data/maps/" \;
+	find "$PWD"/ddnet-maps/types/*/maps -type f -exec ln -sf {} "$data/maps/" \;
+}
+ln -sf "$PWD"/*.cfg "$data/"
+ln -sf "$PWD"/myServerconfig.cfg "$game/"
+while IFS= read -r line; do
+	printf "%s\n" "add_path types/$line/maps" >&3
+done < <(cd "$data/types"; find . -mindepth 1 -maxdepth 1 | cut -d '/' -f 2) 3>"$game/storage.cfg"

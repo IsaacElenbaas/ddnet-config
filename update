@@ -15,7 +15,7 @@ cd "${BASH_SOURCE[0]%/*}"
 		rm /tmp/maps.zip
 	}
 	rm -rf "$data/types"
-	mkdir "$data/types"
+	mkdir -p "$data/types"
 	ln -s "$PWD"/ddnet-maps/types/* "$data/types/"
 	{
 		find ddnet-maps/types -maxdepth 2 -type f -name flexreset.cfg
@@ -46,7 +46,13 @@ cd "${BASH_SOURCE[0]%/*}"
 	find "$PWD/kog-maps/maps" -type f -exec ln -sf {} "$data/maps/" \;
 	find "$PWD"/ddnet-maps/types/*/maps -type f -exec ln -sf {} "$data/maps/" \;
 }
+{
+	{ cat "$data/settings_ddnet.cfg" 2>/dev/null || true; } | grep "^add_friend" | sort
+	{ cat ./friends.cfg 2>/dev/null || true; } | sort
+} | uniq > ./friends.cfg.new
+mv -f friends.cfg.new friends.cfg
 ln -sf "$PWD"/*.cfg "$data/"
+ln -sf "$PWD"/entities.png "$data/assets/entities/"
 ln -sf "$PWD"/myServerconfig.cfg "$game/"
 while IFS= read -r line; do
 	printf "%s\n" "add_path types/$line/maps" >&3
